@@ -7,3 +7,7 @@ numpy
 streamlit
 nltk
 textblob
+transformers
+torch
+streamlit
+google-genai
