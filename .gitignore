@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment
+venv/
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# Datasets
+data/go_emotions/
+data/empathetic_dialogues/
+data/suicide/
+data/*.csv
+
+# Trained models
+models/emotion_model/
+models/crisis_model/
+models/dialogpt_empathy/
+
+# OS files
+.DS_Store
