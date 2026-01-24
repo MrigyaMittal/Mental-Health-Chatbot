@@ -1,3 +1,10 @@
+import os
+import sys
+
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
 import streamlit as st
 import torch
 from transformers import (
@@ -8,6 +15,11 @@ from google import genai
 from google.genai.errors import ClientError
 from datetime import datetime
 import uuid
+import cv2
+import av
+from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
+from src.face_emotion import detect_face_emotion
+
 
 # ================= PAGE CONFIG ================= #
 
@@ -474,6 +486,11 @@ if "current_chat_id" not in st.session_state:
 if "show_debug" not in st.session_state:
     st.session_state.show_debug = False
 
+if "camera_emotion" not in st.session_state:
+    st.session_state.camera_emotion = "Not Used"
+if "camera_conf" not in st.session_state:
+    st.session_state.camera_conf = 0.0
+
 # ================= HELPER FUNCTIONS ================= #
 
 def create_new_chat():
@@ -524,6 +541,62 @@ with st.sidebar:
     )
     
     st.markdown("<hr>", unsafe_allow_html=True)
+    
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown("### 🎥 Facial Emotion (Camera)")
+
+    use_camera = st.checkbox("Enable camera emotion detection", value=False)
+
+    if use_camera:
+
+        class CamProcessor(VideoProcessorBase):
+            def __init__(self):
+                self.last_emotion = "No Face"
+                self.last_conf = 0.0
+
+            def recv(self, frame):
+                img = frame.to_ndarray(format="bgr24")
+
+                emotion, conf, extra = detect_face_emotion(img)
+                stress = extra.get("stress_score", 0.0)
+                engage = extra.get("engagement_score", 0.0)
+
+                self.last_emotion = emotion
+                self.last_conf = conf
+
+                # draw info on frame
+                label = f"{emotion} ({conf:.2f} | stress:{stress:.2f} | engage:{engage:.2f})"
+                cv2.putText(
+                    img,
+                    label,
+                    (20, 40),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1,
+                    (0, 255, 0),
+                    2
+                )
+
+                return av.VideoFrame.from_ndarray(img, format="bgr24")
+
+        ctx = webrtc_streamer(
+            key="camera-emotion",
+            video_processor_factory=CamProcessor,
+            media_stream_constraints={"video": True, "audio": False},
+            async_processing=True,
+        )
+
+        if ctx.video_processor:
+            st.session_state.camera_emotion = ctx.video_processor.last_emotion
+            st.session_state.camera_conf = ctx.video_processor.last_conf
+
+            st.info(
+                f"Camera Emotion: **{st.session_state.camera_emotion}** "
+                f"(conf: {st.session_state.camera_conf:.2f})"
+            )
+    else:
+        st.session_state.camera_emotion = "Not Used"
+        st.session_state.camera_conf = 0.0
+
     
     # Chat History
     st.markdown("### 💬 Chat History")
@@ -617,15 +690,28 @@ user_input = st.chat_input("💭 Type how you're feeling...")
 
 # ================= HANDLE INPUT ================= #
 
+# ================= HANDLE INPUT ================= #
+
 if user_input:
     # Display user message
     with st.chat_message("user"):
         st.markdown(user_input)
-    
-    # Process
-    emotion = predict_emotion(user_input)
+
+    # ✅ 1) emotion from text model
+    text_emotion = predict_emotion(user_input)
+
+    # ✅ 2) emotion from camera (if enabled)
+    camera_emotion = st.session_state.camera_emotion
+
+    # ✅ 3) decide final emotion
+    if camera_emotion in ["Not Used", "No Face"]:
+        emotion = text_emotion
+    else:
+        emotion = camera_emotion
+
+    # ✅ 4) crisis check
     crisis, score = is_crisis(user_input, emotion)
-    
+
     # Generate response
     with st.chat_message("assistant", avatar="🧠"):
         with st.spinner("💭 Listening..."):
@@ -646,13 +732,13 @@ if user_input:
                     emotion,
                     current_chat["messages"]
                 )
-        
+
         st.markdown(bot_reply)
-        
+
         if st.session_state.show_debug:
             emotion_emoji = "😢" if emotion in HIGH_RISK_EMOTIONS else "😊"
             crisis_emoji = "🚨" if crisis else "✅"
-            
+
             st.markdown(f"""
             <div class="debug-info">
                 {emotion_emoji} <strong>Emotion:</strong> {emotion} | 
@@ -660,7 +746,15 @@ if user_input:
                 (Score: {score:.2f})
             </div>
             """, unsafe_allow_html=True)
-    
+
+            # ✅ optional: show both emotions in debug
+            st.markdown(f"""
+            <div class="debug-info">
+                📝 <strong>Text Emotion:</strong> {text_emotion}<br>
+                🎥 <strong>Camera Emotion:</strong> {camera_emotion}
+            </div>
+            """, unsafe_allow_html=True)
+
     # Save to history
     current_chat["messages"].append({
         "user": user_input,
@@ -669,9 +763,9 @@ if user_input:
         "crisis": crisis,
         "score": score
     })
-    
+
     # Update title on first message
     if len(current_chat["messages"]) == 1:
         update_chat_title(current_chat["id"], user_input)
-    
+
     st.rerun()

@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+pydantic
+torch
+transformers
+python-multipart
+opencv-python
+deepface
+tensorflow
+tf-keras
+numpy
+pillow
+python-dotenv

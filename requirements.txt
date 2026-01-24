@@ -11,3 +11,12 @@ transformers
 torch
 streamlit
 google-genai
+transformers>=4.40.0
+huggingface_hub>=0.23
+opencv-python
+streamlit-webrtc
+av
+deepface
+tensorflow
+tf-keras
+
