@@ -11,7 +11,7 @@ from google import genai
 
 # ===================== CONFIG ===================== #
 
-API_KEY = ""
+API_KEY = "AIzaSyDQtRoIcerWU5kIsZShlv1T2vIJGNfh93w"
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

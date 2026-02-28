@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Video, VideoOff } from "lucide-react";
 import * as faceapi from "face-api.js";
 
 const MAP = {
@@ -67,8 +68,8 @@ export default function CameraCapture({ onEmotion }) {
       const { box, emotion, conf } = stableRef.current;
 
       // face box
-      ctx.strokeStyle = "#00e5ff";
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#3b82f6";
+      ctx.lineWidth = 3;
       ctx.strokeRect(box.x, box.y, box.width, box.height);
 
       // label background
@@ -77,12 +78,12 @@ export default function CameraCapture({ onEmotion }) {
       const lx = box.x;
       const ly = Math.max(0, box.y - 30);
 
-      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.fillStyle = "rgba(59, 130, 246, 0.9)";
       ctx.fillRect(lx, ly, labelW, labelH);
 
       // label text
       ctx.fillStyle = "#ffffff";
-      ctx.font = "15px Arial";
+      ctx.font = "bold 14px system-ui";
       ctx.fillText(`${emotion.toUpperCase()} (${conf.toFixed(2)})`, lx + 8, ly + 18);
     };
 
@@ -262,30 +263,25 @@ export default function CameraCapture({ onEmotion }) {
   }, [enabled, onEmotion]);
 
   return (
-    <div className="bg-slate-800 rounded-xl p-3 w-full">
-      <div className="flex items-center justify-between gap-3">
-        <label className="flex items-center gap-2 text-sm text-white">
-          <input
-            checked={enabled}
-            onChange={(e) => setEnabled(e.target.checked)}
-            type="checkbox"
-          />
-          Live Emotion Detection
-        </label>
-
-        <div className="text-xs text-slate-300 text-right whitespace-nowrap">
-          <span className="mr-2">Emotion:</span>
-          <span className="text-white font-semibold">{emotion}</span>
-          <span className="mx-2">|</span>
-          <span className="mr-2">Conf:</span>
-          <span className="text-white font-semibold">{conf}</span>
-        </div>
-      </div>
+    <div className="space-y-3">
+      <button
+        onClick={() => setEnabled(!enabled)}
+        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium transition-all ${
+          enabled
+            ? "bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/30"
+            : "bg-slate-700 hover:bg-slate-600 text-slate-200"
+        }`}
+      >
+        <span className="flex items-center gap-2">
+          {enabled ? <Video size={18} /> : <VideoOff size={18} />}
+          Emotion Detection
+        </span>
+        <span className="text-xs opacity-75">{enabled ? "ON" : "OFF"}</span>
+      </button>
 
       {enabled && (
-        <div className="mt-3 w-full">
-          {/* ✅ Responsive 4:3 Camera Box */}
-          <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden border border-slate-700 bg-black">
+        <div className="space-y-3 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-black shadow-xl">
             <video
               ref={videoRef}
               autoPlay
@@ -293,11 +289,35 @@ export default function CameraCapture({ onEmotion }) {
               muted
               className="absolute inset-0 w-full h-full object-cover"
             />
-
             <canvas
               ref={canvasRef}
               className="absolute inset-0 w-full h-full pointer-events-none"
             />
+            
+            <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
+              <div className="flex items-center gap-2 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                <span className="text-xs text-white font-medium">LIVE</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-slate-700/50 backdrop-blur-sm rounded-xl p-3 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-300">Detected Emotion</span>
+              <span className="font-semibold text-white capitalize">{emotion}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-300">Confidence</span>
+              <span className="font-semibold text-white">{(conf * 100).toFixed(0)}%</span>
+            </div>
+            
+            <div className="w-full bg-slate-600 rounded-full h-2 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-blue-500 to-blue-400 transition-all duration-300"
+                style={{ width: `${conf * 100}%` }}
+              />
+            </div>
           </div>
         </div>
       )}
